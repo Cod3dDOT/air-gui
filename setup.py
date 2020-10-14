@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="aircrack-gui",
-    version="0.0.2",
+    version="0.0.3",
     description="Gtk 3 Python gui for Aircrack",
     long_description=long_description,
     long_description_content_type="text/markdown",

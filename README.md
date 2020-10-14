@@ -1,9 +1,13 @@
 # aircrack-gui
- Gtk3.0 Python gui for aircrack-ng
+
+Aircrack-Gui is a Python gui for Aicrack written with help of Gtk 3.0.
+
+First priority was to make every step intuitive and to remove any need in typing with your hands)
 
 ## Requirements
 
 PyGoObject version: 3.36.0
+
 Python version: 3.2
 
 ## Installation
@@ -35,11 +39,17 @@ Step 4: Now, close all windows except main. Press 'Open Aircrack-ng', select .ca
 3. Comment out everything.
 
 ##Changelog
+- 0.0.3 --- Hashcat support.
+
+- 0.0.2 --- README changess, etc.
+
 - 0.0.1 --- Initial commit.
 
 ## Github
 Check out our github:
+
 [github](https://github.com/Cod3dDot/air-gui)
 
 ## License
+
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0//)

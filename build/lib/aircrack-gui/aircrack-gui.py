@@ -562,9 +562,24 @@ class Aircrack_ng(Gtk.ApplicationWindow):
         self.chooseWordlistFilePath.connect("pressed", self.choose_wordlist_filepath, "1")
         hbox2.pack_start(self.chooseWordlistFilePath, True, True, 0)
         
+        hbox3 = Gtk.Box(spacing = 6)
+        vbox.pack_start(hbox3, True, True, 0)
+        
         self.startAircrack = Gtk.Button(label = "Start Aircrack-ng")
         self.startAircrack.connect("pressed", self.start_aircrack, "1")
-        vbox.pack_start(self.startAircrack, True, True, 0)
+        
+        self.startHashcat = Gtk.Button(label = "   Start Hashcat  ")
+        self.startHashcat.connect("pressed", self.start_hashcat, "1")
+        hbox3.pack_start(self.startAircrack, True, True, 0)
+        hbox3.pack_start(self.startHashcat, True, True, 0)
+        
+    def start_hashcat(self, button, name):
+        if(self.capFilePath.split(".")[1] == "cap"):
+            command_cap2hccapx="cap2hccapx.bin {} {}.hccapx".format(self.capFilePath, self.capFilePath.split(".")[0])
+            os.popen(command_cap2hccapx)
+        command_hashcat='''xterm -T "hashcat" -hold -e "sudo hashcat -m 2500 '{}' '{}'"'''.format(self.capFilePath, self.wordlistFilePath)
+        os.popen(command_hashcat)
+        print(command_hashcat)
     
     def start_aircrack(self, button, name):
         command_aircrack='''xterm -T "aircrack-ng" -hold -e "sudo aircrack-ng -w '{}' '{}'"'''.format(self.wordlistFilePath, self.capFilePath)
