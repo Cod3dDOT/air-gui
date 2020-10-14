@@ -1,0 +1,8 @@
+README.md
+setup.py
+aircrack-gui/aircrack-gui.py
+aircrack_gui.egg-info/PKG-INFO
+aircrack_gui.egg-info/SOURCES.txt
+aircrack_gui.egg-info/dependency_links.txt
+aircrack_gui.egg-info/requires.txt
+aircrack_gui.egg-info/top_level.txt
