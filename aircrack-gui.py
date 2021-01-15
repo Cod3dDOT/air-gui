@@ -1,24 +1,22 @@
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
+from gi.repository import GLib
 import sys
 import os
 import re
 import time
 import csv
+from termcolor import colored
+from datetime import datetime as dt
 
-
-#Values
-#Interfaces tuple array for choosing interface: Inetrface = [['wlan0'], ['wlan1'], ...]
+# Global variables ------------------------- Start
 Interfaces = []
-#Selected interface
 Interface = ""
-
 
 MY_DIRECTORY = os.popen("pwd").read()
 DEFAULT_SAVE_LOCATION = "{}/wifis/".format(MY_DIRECTORY[:-1])
 SaveLocation = ""
-
 
 #Window triggers
 Show_Aircrack = False
@@ -28,8 +26,9 @@ Show_Airodump = False
 #Dialog triggers
 Show_No_Interface = False
 Show_Monitor_Mode_Enabled = False
+# Global variables ------------------------- End
 
-#Update monitor mode state on selected interface
+# Custom functions ------------------------- Start
 def check_monitor_mode(interface):
 	command_get_mode = "sudo iwconfig {} | awk -F: '/Mode/{{print$2}}'".format(interface)
 	if os.popen(command_get_mode).read().split(" ", 1)[0] == "Monitor":
@@ -48,7 +47,7 @@ def update_interfaces():
 		if(interface != "lo" and interface != "eth0"):
 			command_set_interface_up = "sudo ifconfig {} up".format(interface)
 			os.popen(command_set_interface_up)
-			Interfaces.append([interface])
+			Interfaces.append(interface)
 			
 	if len(Interfaces) == 0:
 		if Show_No_Interface == False:
@@ -57,7 +56,7 @@ def update_interfaces():
 			No_Interface_Dialog = NoInterfacesFoundDialog()
 			response = No_Interface_Dialog.run()
 			if response == Gtk.ResponseType.OK:
-				print("Scanning")
+				print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Scanning")
 				restart_network_manager()
 				update_interfaces()
 			else:
@@ -65,7 +64,7 @@ def update_interfaces():
 		else:
 			response = No_Interface_Dialog.run()
 			if response == Gtk.ResponseType.OK:
-				print("Scanning")
+				print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Scanning")
 				restart_network_manager()
 				update_interfaces()
 			else:
@@ -85,11 +84,12 @@ def restart_network_manager():
 		os.popen("sudo systemctl restart NetworkManager").read()
 
 
+# Custom functions ------------------------- Start
 #Main window
 class Air_gui(Gtk.ApplicationWindow):
 	def __init__(self, app):
 		global Air_Gui_Window
-		Gtk.Window.__init__(self, title="Airmon-ng", application=app)
+		Gtk.Window.__init__(self, application=app)
 		self.set_default_size(292, -1)
 		self.set_border_width(10)
 		
@@ -103,7 +103,7 @@ class Air_gui(Gtk.ApplicationWindow):
 		self.aircrackButton = Gtk.Button(label="Open Aircrack-ng")
 		self.aircrackButton.connect("pressed", self.on_button_clicked_aircrack, "1")
 		
-		self.airmonButton = Gtk.ToggleButton(label="Start Airmon-ng")
+		self.airmonButton = Gtk.ToggleButton(label="Start airmon-ng")
 		self.airmonButton.connect("toggled", self.on_button_toggled_airmon, "1")
 		
 		self.scanButton = Gtk.Button(label="Scan for networks")
@@ -111,7 +111,7 @@ class Air_gui(Gtk.ApplicationWindow):
 		
 		self.pathEntry = Gtk.Entry()
 		self.pathEntry.connect("activate", self.path_entry_submit)
-		self.pathEntry.set_placeholder_text("Location of folder for airmon-ng output")
+		self.pathEntry.set_placeholder_text("Location of folder for airodump-ng output")
 
 		# add boxes to position things (vbox = vertical box; hbox = horizontal box)
 		vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -135,67 +135,57 @@ class Air_gui(Gtk.ApplicationWindow):
 		
 	def initiate_combo_box(self, hbox):
 		global Interface
-		# the data in the model, of type string
 		listmodel = Gtk.ListStore(str)
-		# append the data in the model
-		for i in range(len(Interfaces)):
-			listmodel.append(Interfaces[i])
+		for i in Interfaces:
+			listmodel.append([i])
 
-		# a combobox to see the data stored in the model
 		self.combobox = Gtk.ComboBox(model=listmodel)
 
-		# a cellrenderer to render the text
 		cell = Gtk.CellRendererText()
 
-		# pack the cell into the beginning of the combobox, allocating
-		# no more space than needed
 		self.combobox.pack_start(cell, False)
-		# associate a property ("text") of the cellrenderer (cell) to a column (column 0)
-		# in the model used by the combobox
+
 		self.combobox.add_attribute(cell, "text", 0)
 
-		# the first row is the active one by default at the beginning
 		self.combobox.set_active(0)
 
-		# connect the signal emitted when a row is selected to the callback
-		# function
 		self.combobox.connect("changed", self.on_changed_combo)
 		hbox.pack_start(self.combobox, True, True, 0)
-		Interface = str(Interfaces[self.combobox.get_active()][0])
+		Interface = Interfaces[self.combobox.get_active()]
 		
 	def update_combo_box(self):
 		global Interface
 		listmodel = Gtk.ListStore(str)
-		for i in range(len(Interfaces)):
-			listmodel.append(Interfaces[i])
+		for i in Interfaces:
+			listmodel.append([i])
 		self.combobox.set_model(model=listmodel)
 		self.combobox.set_active(0)
-		Interface = str(Interfaces[self.combobox.get_active()][0])
+		Interface = Interfaces[self.combobox.get_active()]
 		
 	def on_changed_combo(self, combo):
 		global Interface
 		# if the row selected is not the first one, write its value on the
 		# terminal
-		Interface = str(Interfaces[self.combobox.get_active()][0])
-		print("You chose " + Interface + ".")
+		Interface = Interfaces[self.combobox.get_active()]
+		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Updated interface " + Interface + ".")
 		return True
 		
 	def on_button_toggled_airmon(self, button, name):
 		if button.get_active():
-			button.set_label("Stop Airmon-ng")
-			print("Killing processes...")
+			button.set_label("Stop airmon-ng")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Killing processes...")
 			command_airmon_check_kill = "sudo airmon-ng check kill"
 			output_airmon_check_kill = os.popen(command_airmon_check_kill).read()
-			print("Starting Airmon-ng on {}...".format(Interface))
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airmon-ng on {}...".format(Interface))
 			command_airmon_start = "sudo airmon-ng start {}".format(Interface)
 			output_airmon_start = os.popen(command_airmon_start).read()
 			update_interfaces()
 		else:
-			button.set_label("Start Airmon-ng")
-			print("Stopping Airmon-ng on {}...".format(Interface))
+			button.set_label("Start airmon-ng")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on {}...".format(Interface))
 			command_airmon_stop = "sudo airmon-ng stop {}".format(Interface)
 			output_airmon_stop = os.popen(command_airmon_stop).read()
-			print("Starting Network Interface...")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting Network Manager...")
 			start_network_manager()
 			update_interfaces()
 		self.update_combo_box()
@@ -222,7 +212,7 @@ class Air_gui(Gtk.ApplicationWindow):
 					response = No_Interface_Dialog.run()
 				if response == Gtk.ResponseType.OK:
 					Monitor_Mode_Enabled_Dialog.destroy()
-					print("Stopping Airmon-ng...")
+					print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on {}".format(Interface))
 					command_airmon_stop = "sudo airmon-ng stop {}".format(Interface)
 					output_airmon_stop = os.popen(command_airmon_stop).read()
 					start_network_manager()
@@ -254,6 +244,8 @@ class Scan(Gtk.ApplicationWindow):
 		self.set_titlebar(hb)
 			
 		wifis = self.scan_networks()
+		if wifis == '':
+			self.destroy()
 
 		grid = Gtk.Grid()
 		self.add(grid)
@@ -273,7 +265,7 @@ class Scan(Gtk.ApplicationWindow):
 			label = Gtk.Label()
 			label.set_markup("<big>Bssid: </big>{}\n<big>Channel: </big>{}\n<big>Signal Strength: </big>{}\n<big>Encryption: </big>{}".format(wifi[0],wifi[2],wifi[3],wifi[4]))
 			vbox.pack_start(label, True, True, 0)
-			self.airodumpButton = Gtk.Button(label="Start Airmon-ng on chosen network")
+			self.airodumpButton = Gtk.Button(label="Start airodump-ng on chosen network")
 			self.airodumpButton.connect("pressed", self.on_button_clicked_airodump, "1", wifi)
 			vbox.pack_start(self.airodumpButton, True, True, 6)
 			name = "label%i" % num
@@ -295,7 +287,8 @@ class Scan(Gtk.ApplicationWindow):
 			del splited_output_scan_wifi[0]
 		
 		if splited_output_scan_wifi[0] == '':
-			print("No networks found")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No networks found")
+			return ''
 			
 		for record in splited_output_scan_wifi:
 			record = re.sub(" +", " ",record)
@@ -323,7 +316,6 @@ class Scan(Gtk.ApplicationWindow):
 		global Show_Airodump
 		if button.activate():
 			if Show_Airodump == False:
-				print("Starting Airodump-ng on bssid: {}".format(wifi[0]))
 				self.airodumpWindow = Airodump_ng(app, wifi)
 				self.airodumpWindow.show_all()
 				Show_Airodump = True
@@ -335,12 +327,14 @@ class Airodump_ng(Gtk.ApplicationWindow):
 	Station = ""
 	SaveTo = ""
 	stationsArray = []
-	stationsTupleArray = []
 	deauthPacketsAmount = 10
+	ActiveStationIndex = 0
+	
 	def __init__(self, app, wifi):
-		if(check_monitor_mode(Interface) is False):
+		if(not check_monitor_mode(Interface)):
 			Air_Gui_Window.airmonButton.set_active(True)
-			
+		
+		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airodump-ng on bssid: {}".format(wifi[0]))
 		self.Wifi = wifi
 		Gtk.Window.__init__(self, title="Airodump-ng", application=app)
 		self.connect("destroy", self.on_destroy)
@@ -359,7 +353,7 @@ class Airodump_ng(Gtk.ApplicationWindow):
 			
 		i = 1;
 		while os.path.isdir(self.SaveTo):
-			if i >= 2:
+			for i in range(int(i/10)):
 				self.SaveTo = self.SaveTo[:-1]
 			self.SaveTo = self.SaveTo[:-1]
 			self.SaveTo += str(i) + "/"
@@ -374,16 +368,17 @@ class Airodump_ng(Gtk.ApplicationWindow):
 		hbox = Gtk.Box(spacing=6)
 		
 		self.add(vbox)
-		self.amountOfPacketsLabel = Gtk.Label(label = "Amount of deauth packets you want to send")
 		self.amountOfPacketsEntry = Gtk.Entry()
 		self.amountOfPacketsEntry.connect('changed', self.on_changed_packet_number_entry)
-		self.amountOfPacketsEntry.set_placeholder_text("Packets amount")
+		self.amountOfPacketsEntry.set_placeholder_text("Amount of deauth packets you want to send. 10 by default")
 		
-		vbox.pack_start(self.amountOfPacketsLabel, True, True, 0)
+		self.statusbar = Gtk.Statusbar()
+		self.context_id = self.statusbar.get_context_id("example")
+		self.statusbar.push(self.context_id, "Waiting for you to do something...")
+		
+		vbox.pack_start(self.statusbar, True, True, 0)
 		vbox.pack_start(self.amountOfPacketsEntry, True, True, 0)
 		
-		self.stationsLabel = Gtk.Label(label = "Write station address OR click the autofill button when station address has appeared in airodump window")
-		vbox.pack_start(self.stationsLabel, True, True, 0)
 		
 		self.stationEntry = Gtk.Entry()
 		self.stationEntry.connect('changed', self.on_station_manual_entry)
@@ -393,29 +388,36 @@ class Airodump_ng(Gtk.ApplicationWindow):
 		self.initiate_station_selector_box(hbox)
 		vbox.pack_start(hbox, True, True, 0)
 		
-		autofillButton = Gtk.Button(label="Autofill station address")
-		autofillButton.connect("clicked", self.autofill_station_address)
-		vbox.pack_start(autofillButton, True, True, 0)
+		#autofillButton = Gtk.CheckButton(label="Autofill station address")
+		#autofillButton.connect("toggled", self.start_continuos_scan)
+		#vbox.pack_start(autofillButton, True, True, 0)
+		
+		self.timeout = GLib.timeout_add_seconds(1, self.autofill_station_address)
+		
+		startTime = time.time()
 		
 		runAireplayBtn = Gtk.Button(label="Run deauth (aireplay-ng)")
 		runAireplayBtn.connect("clicked", self.run_aireplay)
 		vbox.pack_start(runAireplayBtn, True, True, 0)
 		
-	def autofill_station_address(self, button):
-		self.parse_airmon_output()
-		if(len(self.stationsArray) > 0):
-			self.Station = self.stationsArray[0]
-			self.stationEntry.set_text(self.Station)
-			self.update_station_selector_box()
-		else:
-			print("No stations found")
+		
+	def autofill_station_address(self):
+			del self.stationsArray[:]
+			self.parse_airmon_output()
+			if(len(self.stationsArray) > 0):
+				self.Station = self.stationsArray[0]
+				self.stationEntry.set_text(self.Station)
+				self.update_station_selector_box()
+			else:
+				print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No stations found")
+			return True
 			
 	def initiate_station_selector_box(self, hbox):
 		# the data in the model, of type string
 		listmodel = Gtk.ListStore(str)
 		# append the data in the model
-		for i in range(len(self.stationsTupleArray)):
-			listmodel.append(self.stationsTupleArray[i])
+		for i in self.stationsArray:
+			listmodel.append([i])
 
 		# a combobox to see the data stored in the model
 		self.stationSelector = Gtk.ComboBox(model=listmodel)
@@ -440,17 +442,18 @@ class Airodump_ng(Gtk.ApplicationWindow):
 		
 	def update_station_selector_box(self):
 		listmodel = Gtk.ListStore(str)
-		for i in range(len(self.stationsTupleArray)):
-			listmodel.append(self.stationsTupleArray[i])
+		for i in self.stationsArray:
+			listmodel.append([i])
 		self.stationSelector.set_model(model=listmodel)
 		if(len(self.stationsArray) > 0):
-			self.stationSelector.set_active(0)
-			self.Station = str(self.stationsTupleArray[self.stationSelector.get_active()][0])
+			self.stationSelector.set_active(self.ActiveStationIndex)
+			self.Station = self.stationsArray[self.stationSelector.get_active()]
 			self.stationEntry.set_text(self.Station)
 		
 	def on_changed_station_selector(self, combo):
-		self.Station = str(self.stationsTupleArray[self.stationSelector.get_active()][0])
+		self.Station = self.stationsArray[self.stationSelector.get_active()]
 		self.stationEntry.set_text(self.Station)
+		self.ActiveStationIndex = self.stationSelector.get_active()
 		
 		
 	def on_station_manual_entry(self, entry):
@@ -464,9 +467,19 @@ class Airodump_ng(Gtk.ApplicationWindow):
 	def run_aireplay(self, button):
 		command_aireplay = "sudo aireplay-ng --deauth '{}' -a '{}' -c '{}' {}".format(self.deauthPacketsAmount, self.Wifi[0], self.Station, Interface)
 		os.popen(command_aireplay)
+		command_aircrack_output = type(int)
+		try:
+			command_aircrack = "sudo aircrack-ng {}-01.cap | sed -n '7p' | tr -s ' ' | tr -d '()\n'".format(self.SaveTo)
+			command_aircrack_output = int(os.popen(command_aircrack).read().split(" ")[5])
+		except IndexError:
+			command_aircrack = "sudo aircrack-ng {}-01.cap | sed -n '6p' | tr -s ' ' | tr -d '()\n'".format(self.SaveTo)
+			command_aircrack_output = int(os.popen(command_aircrack).read().split(" ")[5])
+		if command_aircrack_output > 0:
+			self.statusbar.push(self.context_id, "Success, handshake recieved")
+
 		
 	def on_destroy(self, widget):
-		print("Stopping airmon-ng on bssid: {}".format(self.Wifi[0]))
+		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airodump-ng on bssid: {}".format(self.Wifi[0]))
 		if(check_monitor_mode(Interface)):
 			Air_Gui_Window.airmonButton.set_active(False)
 	
@@ -476,7 +489,6 @@ class Airodump_ng(Gtk.ApplicationWindow):
 				if(i + 1 > 5):
 					if(l.split(',')[0] != "\n"):
 						self.stationsArray.append(l.split(',')[0])
-						self.stationsTupleArray.append([l.split(',')[0]])
 
 
 #Aircrack-ng window
@@ -515,7 +527,7 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		self.wordlistFilePathEntry.set_placeholder_text("Wordlist location")
 		hbox2.pack_start(self.wordlistFilePathEntry, True, True, 0)
 		
-		self.chooseWordlistFilePath = Gtk.Button(label = "   Choose wordlist    ") # yeah i know but im too sleepy to find the dimensions right now
+		self.chooseWordlistFilePath = Gtk.Button(label = "   Choose wordlist    ") # yeah i know but im too sleepy
 		self.chooseWordlistFilePath.connect("pressed", self.choose_wordlist_filepath, "1")
 		hbox2.pack_start(self.chooseWordlistFilePath, True, True, 0)
 		
@@ -536,12 +548,10 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 			os.popen(command_cap2hccapx)
 		command_hashcat='''xterm -T "hashcat" -hold -e "sudo hashcat -m 2500 '{}' '{}'"'''.format(self.capFilePath, self.wordlistFilePath)
 		os.popen(command_hashcat)
-		print(command_hashcat)
 	
 	def start_aircrack(self, button, name):
 		command_aircrack='''xterm -T "aircrack-ng" -hold -e "sudo aircrack-ng -w '{}' '{}'"'''.format(self.wordlistFilePath, self.capFilePath)
 		os.popen(command_aircrack)
-		print(command_aircrack)
 		
 	def submit_cap_filepath(self, entry):
 		self.capFilePath = entry.get_text()
@@ -626,7 +636,7 @@ class MonitorModeEnabledDialog(Gtk.MessageDialog):
 		self.format_secondary_text("In order to scan for networks inetrface needs to be in managed mode.\nWant to disable monitor mode?")
 		
 		self.add_buttons(
-			"Disable Airmon-ng (Monitor mode)", Gtk.ResponseType.OK
+			"Disable airmon-ng (Monitor mode)", Gtk.ResponseType.OK
 		)
 		
 		self.show_all()

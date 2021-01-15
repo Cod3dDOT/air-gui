@@ -45,11 +45,6 @@ Step 4: Now, close all windows except main. Press 'Open Aircrack-ng', select .ca
 
 - 0.0.1 --- Initial commit.
 
-## Github
-Check out our github:
-
-[github](https://github.com/Cod3dDot/aircrack-gui)
-
 ## License
 
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0//)
