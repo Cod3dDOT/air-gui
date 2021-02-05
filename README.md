@@ -31,7 +31,8 @@ Step 1: Set path (default /home/SUDO_USER/Desktop/aircrack-ng/wifi/)
 Step 2: Press 'Scan', wait for ~3 seconds. A window will show up with network list. Choose any network, check that it has WPA2 encryption (right now WEP is not implemented), hit 'Start Airmon-ng on BSSID: NETWORK_BSSID'.
 ![scanning window](/demo/scanning_window.png)
 
-Step 3: 2 windows will show up: airmon-ng (probably asking for password) and aireplay-ng. In aireplay-ng window, set amount of deauth packets to send (default 10) and wait for station to appear, then hit 'Autofill station BSSID' (you can also type it in manually). Hit 'Start aircrack-ng'. If after ~2 seconds on top of airmon-ng window you see 'WPA handshake...', you were successful.
+Step 3: 2 windows will show up: airmon-ng (probably asking for password) and aireplay-ng. In aireplay-ng window, set amount of deauth packets to send (default 10) and wait for station to appear, then hit 'Autofill station BSSID' (you can also type it in manually). Hit 'Start aircrack-ng'.
+If after ~2 seconds on top of airmon-ng window you see 'WPA handshake...', you were successful.
 ![aireplay-ng window](/demo/aireplay-ng_window.png)
 
 Step 4: Now, close all windows except main. Press 'Open Aircrack-ng', select .cap file (capture file located wherever you set it to in Step 1). Select a worlist, hit start aircrack-ng/hashcat and hope for the best).
