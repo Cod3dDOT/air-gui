@@ -39,6 +39,7 @@ Step 3: Aireplay-ng window will show up. Set amount of deauth packets to send (d
 ![aireplay-ng window](/demo/aireplay-ng_window.png)
 
 Step 4: Now, you can close aireplay-ng window. In main window, press 'Open aircrack-ng', select .cap file (capture file located wherever you set it to in Step 1). Select a worlist, hit start aircrack-ng and hope for the best ;) 
+
 P.S If you want to use hashcat, you need to convert your .cap to .hccapx (one way to do it is to visit this [website](https://hashcat.net/cap2hccapx/))
 
 ![aireplay-ng window](/demo/aircrack-ng_window.png)
