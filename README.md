@@ -44,10 +44,8 @@ P.S If you want to use hashcat, you need to convert your .cap to .hccapx (one wa
 
 ![aireplay-ng window](/demo/aircrack-ng_window.png)
 
-## Todo
-1. Extra labels.
-2. Add screenshots.
-3. Comment out everything.
+## To Do
+- Implement auto .cap -> .hccapx if cap2hccapx (hashcat-utils) is installed.
 
 ## Changelog
 - 0.0.4 --- Removed unnecessary xterm windows (except for aircrack-ng/hashcat), fixed selected station deselecting/changing when updated.
