@@ -21,11 +21,12 @@ git clone https://github.com/Cod3dDOT/aircrack-gui
 Run:
 
 ```
+cd aircrack-gui
 python3 aircrack-gui.py
 ```
 If any interface will be found, a window will open with option to choose an interface, scan, open aircrack-ng or start airmon-ng.
 
-Step 1: Set path (default /home/SUDO_USER/Desktop/aircrack-ng/wifi/)
+Step 1: Set path (default: /home/SUDO_USER/Desktop/aircrack-ng/wifi/)
 
 ![main window](/demo/main_window.png)
 
@@ -33,11 +34,12 @@ Step 2: Press 'Scan', wait for ~3 seconds. A window will show up with network li
 
 ![scanning window](/demo/scanning_window.png)
 
-Step 3: 2 windows will show up: airmon-ng (probably asking for password) and aireplay-ng. In aireplay-ng window, set amount of deauth packets to send (default 10) and wait for station to appear, then hit 'Autofill station BSSID' (you can also type it in manually). Hit 'Start aircrack-ng'. If after ~2 seconds on top of airmon-ng window you see 'WPA handshake...', you were successful.
+Step 3: Aireplay-ng window will show up. Set amount of deauth packets to send (default 10) and wait for station to appear (you can choose if sevreral are found or type station address manually). Hit 'Run deauth (aireplay-ng)'. If you see 'Success' on top of the window, then a hanshake was recieved successfuly.
 
 ![aireplay-ng window](/demo/aireplay-ng_window.png)
 
-Step 4: Now, close all windows except main. Press 'Open Aircrack-ng', select .cap file (capture file located wherever you set it to in Step 1). Select a worlist, hit start aircrack-ng/hashcat and hope for the best).
+Step 4: Now, you can close aireplay-ng window. In main window, press 'Open aircrack-ng', select .cap file (capture file located wherever you set it to in Step 1). Select a worlist, hit start aircrack-ng and hope for the best ;) 
+P.S If you want to use hashcat, you need to convert your .cap to .hccapx (one way to do it is to visit this [website](https://hashcat.net/cap2hccapx/))
 
 ![aireplay-ng window](/demo/aircrack-ng_window.png)
 
@@ -47,8 +49,10 @@ Step 4: Now, close all windows except main. Press 'Open Aircrack-ng', select .ca
 3. Comment out everything.
 
 ## Changelog
+- 0.0.4 --- Removed unnecessary xterm windows (except for aircrack-ng/hashcat), fixed selected station deselecting/changing when updated.
+
 - 0.0.3 --- Hashcat support.
 
-- 0.0.2 --- README changes, etc.
+- 0.0.2 --- README.md changes, etc.
 
 - 0.0.1 --- Initial commit.
