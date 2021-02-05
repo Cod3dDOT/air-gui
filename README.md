@@ -33,8 +33,7 @@ Step 2: Press 'Scan', wait for ~3 seconds. A window will show up with network li
 
 ![scanning window](/demo/scanning_window.png)
 
-Step 3: 2 windows will show up: airmon-ng (probably asking for password) and aireplay-ng. In aireplay-ng window, set amount of deauth packets to send (default 10) and wait for station to appear, then hit 'Autofill station BSSID' (you can also type it in manually). Hit 'Start aircrack-ng'.
-If after ~2 seconds on top of airmon-ng window you see 'WPA handshake...', you were successful.
+Step 3: 2 windows will show up: airmon-ng (probably asking for password) and aireplay-ng. In aireplay-ng window, set amount of deauth packets to send (default 10) and wait for station to appear, then hit 'Autofill station BSSID' (you can also type it in manually). Hit 'Start aircrack-ng'. If after ~2 seconds on top of airmon-ng window you see 'WPA handshake...', you were successful.
 
 ![aireplay-ng window](/demo/aireplay-ng_window.png)
 
