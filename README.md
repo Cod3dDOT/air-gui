@@ -6,9 +6,9 @@ First priority was to make every step intuitive and easy)
 
 ## Requirements
 
-PyGoObject version: 3.36.0
+PyGoObject version: 3.38.0
 
-Python version: 3
+Python version: 3 - stable; 2 - not tested;
 
 ## Installation
 

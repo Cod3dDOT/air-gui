@@ -636,7 +636,8 @@ class MonitorModeEnabledDialog(Gtk.MessageDialog):
 		self.add_buttons("Disable airmon-ng (Monitor mode)", Gtk.ResponseType.OK)
 		
 		self.show_all()
-		
+
+
 Air_Gui_Window = type(Air_gui)
 
 
