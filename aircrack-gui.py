@@ -1,8 +1,7 @@
-# 0.0.4
+# 0.0.5
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk
-from gi.repository import GLib
+from gi.repository import Gtk, GLib
 import sys
 import os
 import re
@@ -172,23 +171,23 @@ class Air_gui(Gtk.ApplicationWindow):
 		# if the row selected is not the first one, write its value on the
 		# terminal
 		Interface = Interfaces[self.combobox.get_active()]
-		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Updated interface " + Interface + ".")
+		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Selected interface: " + Interface + ".")
 		return True
 
 
 	def on_button_toggled_airmon(self, button, name):
 		if button.get_active():
 			button.set_label("Stop airmon-ng")
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Killing processes...")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Killing processes.")
 			output_airmon_check_kill = os.popen("sudo airmon-ng check kill").read()
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airmon-ng on {}...".format(Interface))
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airmon-ng on: {}.".format(Interface))
 			output_airmon_start = os.popen("sudo airmon-ng start {}".format(Interface)).read()
 			update_interfaces()
 		else:
 			button.set_label("Start airmon-ng")
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on {}...".format(Interface))
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on: {}.".format(Interface))
 			output_airmon_stop = os.popen("sudo airmon-ng stop {}".format(Interface)).read()
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting Network Manager...")
+			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting Network Manager.")
 			start_network_manager()
 			update_interfaces()
 		self.update_combo_box()
@@ -239,44 +238,46 @@ class Scan(Gtk.ApplicationWindow):
 	def __init__(self, app):
 		global Show_Airodump
 		Show_Airodump = False
+		
 		Gtk.Window.__init__(self, title="Scan for networks", application=app)
 		self.set_default_size(500, 200)
 		self.set_border_width(10)
 		
-		hb = Gtk.HeaderBar()
-		hb.set_show_close_button(True)
-		hb.props.title = "Aircrack-ng GUI"
-		self.set_titlebar(hb)
-			
-		wifis = self.scan_networks()
-		if wifis == '':
-			self.destroy()
+		headerbar = Gtk.HeaderBar()
+		headerbar.set_show_close_button(True)
+		headerbar.props.title = "Aircrack-ng GUI"
+		self.set_titlebar(headerbar)
 
-		grid = Gtk.Grid()
-		self.add(grid)
+		parent = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+		self.add(parent)
 
 		stack = Gtk.Stack()
 		stack.set_hexpand(True)
 		stack.set_vexpand(True)
-		grid.attach(stack, 1, 0, 1, 1)
 
 		stacksidebar = Gtk.StackSidebar()
 		stacksidebar.set_stack(stack)
-		grid.attach(stacksidebar, 0, 0, 1, 1)
-			
-		num = 0
-		for wifi in wifis:
+		
+		parent.pack_start(stacksidebar,  True, True, 6)
+		parent.pack_start(stack, True, True, 6)
+		
+		networks = self.scan_networks()
+		if networks == '':
+			self.destroy()
+		
+		for index, network in enumerate(networks):
 			vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+			
 			label = Gtk.Label()
-			label.set_markup("<big>Bssid: </big>{}\n<big>Channel: </big>{}\n<big>Signal Strength: </big>{}\n<big>Encryption: </big>{}".format(wifi[0],wifi[2],wifi[3],wifi[4]))
+			label.set_markup("<big>Bssid: </big>{}\n<big>Channel: </big>{}\n<big>Signal Strength: </big>{}\n<big>Encryption: </big>{}".format(network[0], network[2], network[3], network[4]))
 			vbox.pack_start(label, True, True, 0)
+			
 			self.airodumpButton = Gtk.Button(label="Start airodump-ng on chosen network")
-			self.airodumpButton.connect("pressed", self.on_button_clicked_airodump, "1", wifi)
+			self.airodumpButton.connect("pressed", self.on_button_clicked_airodump, "1", network)
 			vbox.pack_start(self.airodumpButton, True, True, 6)
-			name = "label%i" % num
-			title = wifi[1]
-			stack.add_titled(vbox, name, title)
-			num+=1
+			
+			name = "label%i" % index
+			stack.add_titled(vbox, name, network[1])
 
 
 	def scan_networks(self):
@@ -387,7 +388,7 @@ class Airodump_ng(Gtk.ApplicationWindow):
 		
 		self.statusbar = Gtk.Statusbar()
 		self.context_id = self.statusbar.get_context_id("example")
-		self.statusbar.push(self.context_id, "Waiting for you to do something...")
+		self.statusbar.push(self.context_id, "Scanning for stations...")
 		
 		vbox.pack_start(self.statusbar, True, True, 0)
 		vbox.pack_start(self.amountOfPacketsEntry, True, True, 0)
@@ -404,9 +405,11 @@ class Airodump_ng(Gtk.ApplicationWindow):
 		
 		startTime = time.time()
 		
-		runAireplayBtn = Gtk.Button(label="Run deauth (aireplay-ng)")
-		runAireplayBtn.connect("clicked", self.run_aireplay)
-		vbox.pack_start(runAireplayBtn, True, True, 0)
+		self.runAireplayBtn = Gtk.Button(label="Run deauth (aireplay-ng)")
+		self.runAireplayBtn.connect("clicked", self.run_aireplay)
+		self.runAireplayBtn.set_sensitive(False)
+		
+		vbox.pack_start(self.runAireplayBtn, True, True, 0)
 
 
 	def autofill_station_address(self):
@@ -455,6 +458,11 @@ class Airodump_ng(Gtk.ApplicationWindow):
 
 	def on_station_manual_entry(self, entry):
 		self.Station = entry.get_text()
+		#dope mac validity check
+		if (self.Station != '' and self.Station[2:][::3] == ":::::"):
+			self.runAireplayBtn.set_sensitive(True)
+		else:
+			self.runAireplayBtn.set_sensitive(False)
 
 
 	def on_changed_packet_number_entry(self, entry):
@@ -464,6 +472,7 @@ class Airodump_ng(Gtk.ApplicationWindow):
 
 
 	def run_aireplay(self, button):
+		self.statusbar.push(self.context_id, "Sending {} packets to {}".format(self.deauthPacketsAmount, self.Station))
 		command_aireplay = "sudo aireplay-ng --deauth '{}' -a '{}' -c '{}' {}".format(self.deauthPacketsAmount, self.Wifi[0], self.Station, Interface)
 		os.popen(command_aireplay)
 		command_aircrack_output = type(int)
@@ -474,7 +483,9 @@ class Airodump_ng(Gtk.ApplicationWindow):
 			command_aircrack = "sudo aircrack-ng {}-01.cap | sed -n '6p' | tr -s ' ' | tr -d '()\n'".format(self.SaveTo)
 			command_aircrack_output = int(os.popen(command_aircrack).read().split(" ")[5])
 		if command_aircrack_output > 0:
-			self.statusbar.push(self.context_id, "Success, handshake recieved")
+			self.statusbar.push(self.context_id, "Success, handshake recieved.")
+		else:
+			self.statusbar.push(self.context_id, "Failed, handshake not found. Try again or change target.")
 
 
 	def on_destroy(self, widget):
@@ -511,7 +522,7 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		vbox.pack_start(hbox, True, True, 0)
 		
 		self.capFilePathEntry = Gtk.Entry()
-		self.capFilePathEntry.connect('activate', self.submit_cap_filepath)
+		self.capFilePathEntry.connect("changed", self.submit_cap_filepath)
 		self.capFilePathEntry.set_placeholder_text("Capture file location")
 		hbox.pack_start(self.capFilePathEntry, True, True, 0)
 		
@@ -522,7 +533,7 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		hbox2 = Gtk.Box(spacing = 6)
 		vbox.pack_start(hbox2, True, True, 0)
 		self.wordlistFilePathEntry = Gtk.Entry()
-		self.wordlistFilePathEntry.connect('activate', self.submit_wordlist_filepath)
+		self.wordlistFilePathEntry.connect("changed", self.submit_wordlist_filepath)
 		self.wordlistFilePathEntry.set_placeholder_text("Wordlist location")
 		hbox2.pack_start(self.wordlistFilePathEntry, True, True, 0)
 		
@@ -535,28 +546,41 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		
 		self.startAircrack = Gtk.Button(label = "Start Aircrack-ng")
 		self.startAircrack.connect("pressed", self.start_aircrack, "1")
+		self.startAircrack.set_sensitive(False)
 		
 		self.startHashcat = Gtk.Button(label = "   Start Hashcat  ")
 		self.startHashcat.connect("pressed", self.start_hashcat, "1")
+		self.startHashcat.set_sensitive(False)
+		
 		hbox3.pack_start(self.startAircrack, True, True, 0)
 		hbox3.pack_start(self.startHashcat, True, True, 0)
 
 
 	def start_hashcat(self, button, name):
 		if self.capFilePath.split(".")[1] == "cap":
-			command_cap2hccapx="cap2hccapx.bin {} {}.hccapx".format(self.capFilePath, self.capFilePath.split(".")[0])
-			os.popen(command_cap2hccapx)
-		command_hashcat='''xterm -T "hashcat" -hold -e "sudo hashcat -m 2500 '{}' '{}'"'''.format(self.capFilePath, self.wordlistFilePath)
+			command_hcxpcapngtool="hcxpcapngtool {} -o {}.22000".format(self.capFilePath, self.capFilePath.split(".")[0])
+			os.popen(command_hcxpcapngtool)
+		command_hashcat = '''xterm -T "hashcat" -hold -e "sudo hashcat -m 22000 '{}' '{}'"'''.format(self.capFilePath.split(".")[0] + ".22000", self.wordlistFilePath)
 		os.popen(command_hashcat)
 
 
 	def start_aircrack(self, button, name):
 		command_aircrack='''xterm -T "aircrack-ng" -hold -e "sudo aircrack-ng -w '{}' '{}'"'''.format(self.wordlistFilePath, self.capFilePath)
 		os.popen(command_aircrack)
+		
+	def ready_check(self):
+		if(os.path.isfile(self.capFilePath) and os.path.isfile(self.wordlistFilePath)):
+			if(self.capFilePath.split(".")[1] == "cap"):
+				self.startAircrack.set_sensitive(True)
+				
+				command_check_hcxpcapngtool = "which hcxpcapngtool";
+				if (os.popen(command_check_hcxpcapngtool).read() != "hcxpcapngtool not found\n"):
+					self.startHashcat.set_sensitive(True)
 
 
 	def submit_cap_filepath(self, entry):
 		self.capFilePath = entry.get_text()
+		self.ready_check()
 
 
 	def choose_cap_filepath(self, button, name):
@@ -579,13 +603,13 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		if chooser.run() == Gtk.ResponseType.OK:
 			self.capFilePath = chooser.get_filename()
 			self.capFilePathEntry.set_text(self.capFilePath)
-			chooser.destroy()
-		else:
-			chooser.destroy()
+			self.ready_check()
+		chooser.destroy()
 
 
 	def submit_wordlist_filepath(self, entry):
 		self.wordlistFilePath = entry.get_text()
+		self.ready_check()
 
 
 	def choose_wordlist_filepath(self, button, name):
@@ -604,9 +628,8 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 		if chooser.run() == Gtk.ResponseType.OK:
 			self.wordlistFilePath = chooser.get_filename()
 			self.wordlistFilePathEntry.set_text(self.wordlistFilePath)
-			chooser.destroy()
-		else:
-			chooser.destroy() 
+			self.ready_check()
+		chooser.destroy()
 
 
 #Dialog shown on start if no network interfaces were found
@@ -666,7 +689,7 @@ class Aircrack_gui(Gtk.Application):
 No_Interface_Dialog = type(NoInterfacesFoundDialog)
 Monitor_Mode_Enabled_Dialog = type(MonitorModeEnabledDialog)
 
-#System required things (set app = programm, exit when programm exit status say to)
+#System required things (set app = programm, exit when program exit status say to)
 app = Aircrack_gui()
 exit_status = app.run(sys.argv)
 sys.exit(exit_status)
