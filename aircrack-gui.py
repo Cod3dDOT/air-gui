@@ -286,6 +286,7 @@ class Scan(Gtk.ApplicationWindow):
 		output_scan_wifi = os.popen(command_scan_wifi).read()
 		splited_output_scan_wifi = output_scan_wifi.split("\n")
 		del splited_output_scan_wifi[0]
+		
 		if splited_output_scan_wifi[0] == '':
 			time.sleep(5)
 			output_scan_wifi = os.popen(command_scan_wifi).read()
@@ -300,22 +301,28 @@ class Scan(Gtk.ApplicationWindow):
 			record = re.sub(" +", " ",record)
 			record = record.strip()
 			splitted_record = record.split(" ")
-			if splitted_record != ['']:
-				if splitted_record[0] == '*':
-					del splitted_record[0]
-				i = 2;
-				while i < splitted_record.index("Infra"):
-					splitted_record[1] += " " + splitted_record[i]
-					splitted_record.remove(splitted_record[i])
-				if "WPA1" in splitted_record:
-					index = splitted_record.index("WPA1")+1;
-					splitted_record[splitted_record.index("WPA1")]+= " " + splitted_record[index]
-					splitted_record.remove(splitted_record[index])
-				del splitted_record[2]
-				del splitted_record[3]
-				del splitted_record[3]
-				del splitted_record[4]
-				wifis.append(splitted_record)
+			if splitted_record == ['']:
+				continue
+			
+			if splitted_record[0] == '*':
+				del splitted_record[0]
+			
+			#fix for names with spaces (note for my future self)
+			i = 2;
+			while i < splitted_record.index("Infra"):
+				splitted_record[1] += " " + splitted_record[i]
+				splitted_record.remove(splitted_record[i])
+				
+			index_infra = splitted_record.index("Infra")
+			del splitted_record[index_infra]
+			del splitted_record[index_infra+1]
+			del splitted_record[index_infra+1]
+			del splitted_record[index_infra+2]
+			
+			for index in range(index_infra+2, len(splitted_record)-1):
+				splitted_record[index] += ", " + splitted_record[index+1]
+				splitted_record.remove(splitted_record[index+1])
+			wifis.append(splitted_record)
 		return wifis
 
 
