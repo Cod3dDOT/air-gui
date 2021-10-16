@@ -1,7 +1,7 @@
 # 0.0.5
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
+from gi.repository import Gtk, GLib, Gio
 import sys
 import os
 import re
@@ -9,6 +9,7 @@ import time
 import csv
 from termcolor import colored
 from datetime import datetime as dt
+import math
 
 # Global variables ------------------------- Start
 Interfaces = []
@@ -18,12 +19,17 @@ MY_DIRECTORY = os.popen("pwd").read()
 DEFAULT_SAVE_LOCATION = "{}/wifis/".format(MY_DIRECTORY[:-1])
 SaveLocation = ""
 
-#Window triggers
+# Arguments
+DO_NOT_KILL  	= False
+DO_NOT_LOG 	 	= False
+DO_NOT_CLEAN 	= False
+
+# Window triggers
 Show_Aircrack = False
 Show_Aireplay = False
 Show_Airodump = False
 
-#Dialog triggers
+# Dialog triggers
 Show_No_Interface = False
 Show_Monitor_Mode_Enabled = False
 # Global variables ------------------------- End
@@ -57,7 +63,7 @@ def update_interfaces():
 			No_Interface_Dialog = NoInterfacesFoundDialog()
 			response = No_Interface_Dialog.run()
 			if response == Gtk.ResponseType.OK:
-				print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Scanning")
+				log("Scanning for interfaces.")
 				restart_network_manager()
 				update_interfaces()
 			else:
@@ -65,7 +71,7 @@ def update_interfaces():
 		else:
 			response = No_Interface_Dialog.run()
 			if response == Gtk.ResponseType.OK:
-				print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Scanning")
+				log("Scanning for interfaces.")
 				restart_network_manager()
 				update_interfaces()
 			else:
@@ -83,6 +89,28 @@ def start_network_manager():
 def restart_network_manager():
 	if "Unit dhcpcd.service" in os.popen("sudo systemctl restart dhcpcd 2>&1").read():
 		os.popen("sudo systemctl restart NetworkManager").read()
+		
+def log(string, logtype = 0, nonewline = False):
+	if DO_NOT_LOG:
+		return
+
+	type_indicator = ""
+	if logtype == 0:
+		type_indicator = colored("INFO", "green")
+	if logtype == 1:
+		type_indicator = colored("WARNING", "yellow")
+	if logtype == 2:
+		type_indicator = colored("ERROR", "red")
+	if nonewline:
+		print("[" + colored(str(dt.now().time()).split(".")[0], "blue") + "] [" + type_indicator + "] " + string, end="\r")
+	else:
+		print("[" + colored(str(dt.now().time()).split(".")[0], "blue") + "] [" + type_indicator + "] " + string)
+	
+def run_command(command):
+	return os.popen(command).read()
+	
+def run_command_background(command):
+	return os.popen(command)
 
 
 # Custom functions ------------------------- Start
@@ -171,23 +199,26 @@ class Air_gui(Gtk.ApplicationWindow):
 		# if the row selected is not the first one, write its value on the
 		# terminal
 		Interface = Interfaces[self.combobox.get_active()]
-		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Selected interface: " + Interface + ".")
+		log("Selected interface: " + Interface + ".")
 		return True
 
 
 	def on_button_toggled_airmon(self, button, name):
 		if button.get_active():
 			button.set_label("Stop airmon-ng")
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Killing processes.")
-			output_airmon_check_kill = os.popen("sudo airmon-ng check kill").read()
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airmon-ng on: {}.".format(Interface))
-			output_airmon_start = os.popen("sudo airmon-ng start {}".format(Interface)).read()
+			if not DO_NOT_KILL:
+				log("Killing processes.")
+				output_airmon_check_kill = os.popen("sudo airmon-ng check kill").read()
+			else:
+				log("NOT killing processes.", 1)
+			log("Starting airmon-ng on: {}.".format(Interface))
+			run_command("sudo airmon-ng start {}".format(Interface))
 			update_interfaces()
 		else:
 			button.set_label("Start airmon-ng")
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on: {}.".format(Interface))
-			output_airmon_stop = os.popen("sudo airmon-ng stop {}".format(Interface)).read()
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting Network Manager.")
+			log("Stopping airmon-ng on: {}.".format(Interface))
+			run_command("sudo airmon-ng stop {}".format(Interface))
+			log("Starting Network Manager.")
 			start_network_manager()
 			update_interfaces()
 		self.update_combo_box()
@@ -216,8 +247,8 @@ class Air_gui(Gtk.ApplicationWindow):
 					response = No_Interface_Dialog.run()
 				if response == Gtk.ResponseType.OK:
 					Monitor_Mode_Enabled_Dialog.destroy()
-					print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airmon-ng on {}".format(Interface))
-					output_airmon_stop = os.popen("sudo airmon-ng stop {}".format(Interface)).read()
+					log("Stopping airmon-ng on {}".format(Interface))
+					run_command("sudo airmon-ng stop {}".format(Interface))
 					start_network_manager()
 						
 					update_interfaces()
@@ -281,26 +312,22 @@ class Scan(Gtk.ApplicationWindow):
 
 
 	def scan_networks(self):
-		wifis = []
+		networks = []
 		
-		command_scan_wifi = "nmcli dev wifi"
-		output_scan_wifi = os.popen(command_scan_wifi).read()
-		splited_output_scan_wifi = output_scan_wifi.split("\n")
+		splited_output_scan_wifi = run_command("nmcli dev wifi").split("\n")
 		del splited_output_scan_wifi[0]
 		
-		if splited_output_scan_wifi[0] == '':
-			time.sleep(5)
-			output_scan_wifi = os.popen(command_scan_wifi).read()
-			splited_output_scan_wifi = output_scan_wifi.split("\n")
-			del splited_output_scan_wifi[0]
+		if splited_output_scan_wifi == []:
+			log("No networks found", 2)
+			return networks
 		
 		if splited_output_scan_wifi[0] == '':
-			print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No networks found")
-			return ''
+			log("No networks found", 2)
+			return networks
 			
 		for record in splited_output_scan_wifi:
-			record = re.sub(" +", " ",record)
-			record = record.strip()
+			record = re.sub(" +", " ", record).strip()
+			
 			splitted_record = record.split(" ")
 			if splitted_record == ['']:
 				continue
@@ -309,7 +336,7 @@ class Scan(Gtk.ApplicationWindow):
 				del splitted_record[0]
 			
 			#fix for names with spaces (note for my future self)
-			i = 2;
+			i = 2
 			while i < splitted_record.index("Infra"):
 				splitted_record[1] += " " + splitted_record[i]
 				splitted_record.remove(splitted_record[i])
@@ -320,17 +347,18 @@ class Scan(Gtk.ApplicationWindow):
 			del splitted_record[index_infra+1]
 			del splitted_record[index_infra+2]
 			
-			for index in range(index_infra+2, len(splitted_record)-1):
-				splitted_record[index] += ", " + splitted_record[index+1]
-				splitted_record.remove(splitted_record[index+1])
-			wifis.append(splitted_record)
-		return wifis
+			for index in range(index_infra + 2, len(splitted_record) - 1):
+				splitted_record[index] += ", " + splitted_record[index + 1]
+				splitted_record.remove(splitted_record[index + 1])
+			
+			networks.append(splitted_record)
+		return networks
 
 
 	def on_button_clicked_airodump(self, button, name, wifi):
 		global Show_Airodump
 		if button.activate():
-			if Show_Airodump == False:
+			if Show_Airodump is False:
 				self.airodumpWindow = Airodump_ng(app, wifi)
 				self.airodumpWindow.show_all()
 				Show_Airodump = True
@@ -339,71 +367,71 @@ class Scan(Gtk.ApplicationWindow):
 
 #Airodump-ng window on selected network
 class Airodump_ng(Gtk.ApplicationWindow):
-	Wifi = []
+	Network = []
 	Station = ""
-	SaveTo = ""
-	stationsArray = []
-	deauthPacketsAmount = 10
+	Stations = []
+	Directory = ""
+	DeauthPackets = 10
 	
-	def __init__(self, app, wifi):
+	def __init__(self, app, network):
 		if not check_monitor_mode(Interface):
 			Air_Gui_Window.airmonButton.set_active(True)
 		
-		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Starting airodump-ng on bssid: {}".format(wifi[0]))
-		self.Wifi = wifi
+		self.Network = network
+		log("Starting airodump-ng on bssid: {}".format(self.Network[0]))
 		Gtk.Window.__init__(self, title="Airodump-ng", application=app)
 		self.connect("destroy", self.on_destroy)
 		self.set_default_size(500, -1)
 		self.set_border_width(10)
 		
-		hb = Gtk.HeaderBar()
-		hb.set_show_close_button(True)
-		hb.props.title = "Aircrack-ng GUI"
-		self.set_titlebar(hb)
+		headerbar = Gtk.HeaderBar()
+		headerbar.set_show_close_button(True)
+		headerbar.props.title = "Aircrack-ng GUI"
+		self.set_titlebar(headerbar)
 		
 		if SaveLocation != "":
-			self.SaveTo = SaveLocation + self.Wifi[1] + "/"
+			self.Directory = SaveLocation + self.Network[1] + ":1"
 		else:
-			self.SaveTo = DEFAULT_SAVE_LOCATION + self.Wifi[1] + "/"
+			self.Directory = DEFAULT_SAVE_LOCATION + self.Network[1] + ":1"
 			
-		i = 1;
-		while os.path.isdir(self.SaveTo):
-			for i in range(int(i/10)):
-				self.SaveTo = self.SaveTo[:-1]
-			self.SaveTo = self.SaveTo[:-1]
-			self.SaveTo += str(i) + "/"
-			i += 1
+		index = 1
+		while os.path.isdir(self.Directory + "/"):
+			for k in range(math.ceil((index/10))):
+				self.Directory = self.Directory[:-1]
+			self.Directory += str(index)
+			index += 1
 		
-		os.makedirs(self.SaveTo)
-		command_airodump = "sudo airodump-ng --bssid '{}' -c '{}' --write-interval 1 --write '{}' {} > /dev/null 2>&1".format(self.Wifi[0], self.Wifi[2], self.SaveTo, Interface)
-		output_airodump = os.popen(command_airodump)
+		self.Directory += "/"
+		
+		os.makedirs(self.Directory)
+		run_command_background("sudo airodump-ng --bssid {} -c {} --write-interval 1 --write {} {} > /dev/null 2>&1".format(self.Network[0], self.Network[2], self.Directory, Interface))
 		
 		vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 		hbox = Gtk.Box(spacing=6)
 		
 		self.add(vbox)
 		self.amountOfPacketsEntry = Gtk.Entry()
-		self.amountOfPacketsEntry.connect('changed', self.on_changed_packet_number_entry)
-		self.amountOfPacketsEntry.set_placeholder_text("Amount of deauth packets you want to send. 10 by default")
+		self.amountOfPacketsEntry.connect("changed", self.on_changed_packet_number_entry)
+		self.amountOfPacketsEntry.set_placeholder_text("Amount of deauth packets you want to send. 10 by default.")
 		
 		self.statusbar = Gtk.Statusbar()
-		self.context_id = self.statusbar.get_context_id("example")
-		self.statusbar.push(self.context_id, "Scanning for stations...")
+		self.context_id = self.statusbar.get_context_id("statusbar")
+		self.statusbar.push(self.context_id, "Scanning for stations.")
 		
 		vbox.pack_start(self.statusbar, True, True, 0)
 		vbox.pack_start(self.amountOfPacketsEntry, True, True, 0)
 		
 		self.stationEntry = Gtk.Entry()
-		self.stationEntry.connect('changed', self.on_station_manual_entry)
+		self.stationEntry.connect("changed", self.on_station_manual_entry)
 		self.stationEntry.set_placeholder_text("Station address")
+		
+		self.autofill_station_address()
+		self.timeout = GLib.timeout_add_seconds(1, self.autofill_station_address)
+		startTime = time.time()
 		
 		hbox.pack_start(self.stationEntry, True, True, 0)
 		self.initiate_station_selector_box(hbox)
 		vbox.pack_start(hbox, True, True, 0)
-		
-		self.timeout = GLib.timeout_add_seconds(1, self.autofill_station_address)
-		
-		startTime = time.time()
 		
 		self.runAireplayBtn = Gtk.Button(label="Run deauth (aireplay-ng)")
 		self.runAireplayBtn.connect("clicked", self.run_aireplay)
@@ -413,20 +441,19 @@ class Airodump_ng(Gtk.ApplicationWindow):
 
 
 	def autofill_station_address(self):
-			del self.stationsArray[:]
-			self.parse_airmon_output()
-			if len(self.stationsArray) > 0:
-				if self.Station not in self.stationsArray:
-					self.Station = self.stationsArray[0]
-				self.update_station_selector_box()
-			#else:
-				#print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No stations found")
-			return True
+		self.get_stations_from_airmon()
+		if len(self.Stations) > 0:
+			if self.Station not in self.Stations:
+				self.Station = self.Stations[0]
+			self.update_station_selector_box()
+		#else:
+			#print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No stations found")
+		return True
 
 
 	def initiate_station_selector_box(self, hbox):
 		listmodel = Gtk.ListStore(str)
-		for i in self.stationsArray:
+		for i in self.Stations:
 			listmodel.append([i])
 
 		self.stationSelector = Gtk.ComboBox(model=listmodel)
@@ -444,22 +471,21 @@ class Airodump_ng(Gtk.ApplicationWindow):
 
 	def update_station_selector_box(self):
 		listmodel = Gtk.ListStore(str)
-		for i in self.stationsArray:
+		for i in self.Stations:
 			listmodel.append([i])
 		self.stationSelector.set_model(model=listmodel)
-		if len(self.stationsArray) > 0:
-			self.stationSelector.set_active(self.stationsArray.index(self.Station))
+		if len(self.Stations) > 0:
+			self.stationSelector.set_active(self.Stations.index(self.Station))
 			self.stationEntry.set_text(self.Station)
 
 	def on_changed_station_selector(self, combo):
-		self.Station = self.stationsArray[self.stationSelector.get_active()]
+		self.Station = self.Stations[self.stationSelector.get_active()]
 		self.stationEntry.set_text(self.Station)
 
 
 	def on_station_manual_entry(self, entry):
 		self.Station = entry.get_text()
-		#dope mac validity check
-		if (self.Station != '' and self.Station[2:][::3] == ":::::"):
+		if re.match("[0-9a-f]{2}([-:]?)[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", self.Station.lower()):
 			self.runAireplayBtn.set_sensitive(True)
 		else:
 			self.runAireplayBtn.set_sensitive(False)
@@ -468,38 +494,58 @@ class Airodump_ng(Gtk.ApplicationWindow):
 	def on_changed_packet_number_entry(self, entry):
 		text = entry.get_text().strip()
 		entry.set_text(''.join([i for i in text if i in '0123456789']))
-		self.deauthPacketsAmount = entry.get_text()
+		self.DeauthPackets = entry.get_text()
 
 
 	def run_aireplay(self, button):
-		self.statusbar.push(self.context_id, "Sending {} packets to {}".format(self.deauthPacketsAmount, self.Station))
-		command_aireplay = "sudo aireplay-ng --deauth '{}' -a '{}' -c '{}' {}".format(self.deauthPacketsAmount, self.Wifi[0], self.Station, Interface)
-		os.popen(command_aireplay)
-		command_aircrack_output = type(int)
+		log("Sending {} packets to {}".format(self.DeauthPackets, self.Station), 0, True)
+		run_command("sudo aireplay-ng --deauth '{}' -a '{}' -c '{}' {}".format(self.DeauthPackets, self.Network[0], self.Station, Interface))
+		
+		hanshakes = 0
 		try:
-			command_aircrack = "sudo aircrack-ng {}-01.cap | sed -n '7p' | tr -s ' ' | tr -d '()\n'".format(self.SaveTo)
-			command_aircrack_output = int(os.popen(command_aircrack).read().split(" ")[5])
+			command_aircrack_output = run_command("sudo aircrack-ng {}-01.cap | sed -n '7p' | tr -s ' ' | tr -d '()\n'".format(self.Directory))
+			hanshakes = int(command_aircrack_output.split(" ")[5])
 		except IndexError:
-			command_aircrack = "sudo aircrack-ng {}-01.cap | sed -n '6p' | tr -s ' ' | tr -d '()\n'".format(self.SaveTo)
-			command_aircrack_output = int(os.popen(command_aircrack).read().split(" ")[5])
-		if command_aircrack_output > 0:
+			command_aircrack_output = run_command("sudo aircrack-ng {}-01.cap | sed -n '6p' | tr -s ' ' | tr -d '()\n'".format(self.Directory))
+			hanshakes = int(command_aircrack_output.split(" ")[5])
+		
+		if hanshakes > 0:
 			self.statusbar.push(self.context_id, "Success, handshake recieved.")
+			log("Sending {} packets to {}: {}".format(self.DeauthPackets, self.Station, colored("Success", "green")))
 		else:
-			self.statusbar.push(self.context_id, "Failed, handshake not found. Try again or change target.")
+			self.statusbar.push(self.context_id, "Failed, handshake not found. Try again or change the target.")
+			log("Sending {} packets to {}: {}".format(self.DeauthPackets, self.Station, colored("Failure", "yellow")))
 
 
 	def on_destroy(self, widget):
-		print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('INFO', 'green') + "] Stopping airodump-ng on bssid: {}".format(self.Wifi[0]))
+		log("Stopping airodump-ng on bssid: {}".format(self.Network[0]))
 		if check_monitor_mode(Interface):
 			Air_Gui_Window.airmonButton.set_active(False)
+		self.manage_temporary_files()
+			
+	def manage_temporary_files(self):
+		if DO_NOT_CLEAN:
+			os.makedirs(self.Directory + "stations/")
+		for _file in os.listdir(self.Directory):
+			if os.path.splitext(_file)[1] == ".csv" or os.path.splitext(_file)[1] == ".netxml":
+				path = os.path.join(self.Directory, _file)
+				if DO_NOT_CLEAN:
+					os.rename(path, os.path.join(self.Directory + "stations/", _file))
+				else:
+					os.remove(path)
 
 
-	def parse_airmon_output(self):
-		with open('{}-01.csv'.format(self.SaveTo), 'r') as csvfile:
-			for i, l in enumerate(csvfile):
-				if i + 1 > 5:
-					if l.split(',')[0] != "\n":
-						self.stationsArray.append(l.split(',')[0])
+	def get_stations_from_airmon(self):
+		del self.Stations[:]
+		if os.path.isfile("{}-01.csv".format(self.Directory)) == False:
+			return
+		with open("{}-01.csv".format(self.Directory), "r") as csvfile:
+			for index, value in enumerate(csvfile):
+				if index < 5:
+					continue
+				value = value.split(',')[0]
+				if value != "\n":
+					self.Stations.append(value)
 
 
 #Aircrack-ng window
@@ -675,7 +721,32 @@ Air_Gui_Window = type(Air_gui)
 class Aircrack_gui(Gtk.Application):
 	
 	def __init__(self):
-		Gtk.Application.__init__(self)
+		Gtk.Application.__init__(self, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+		#print(app.args)
+		self.add_main_option(
+			"nokill",
+			0,
+			GLib.OptionFlags.NONE,
+			GLib.OptionArg.NONE,
+			"Do not run 'airmon-ng check kill'. Will retain internet connection on other devices, but is probably a bad idea.",
+			None,
+		)
+		self.add_main_option(
+			"noclean",
+			0,
+			GLib.OptionFlags.NONE,
+			GLib.OptionArg.NONE,
+			"Do not clean .csv files generated by airodump-ng when scanning for clients.",
+			None,
+		)
+		self.add_main_option(
+			"nolog",
+			0,
+			GLib.OptionFlags.NONE,
+			GLib.OptionArg.NONE,
+			"Do not print anything to console.",
+			None,
+		)
 
 	def do_activate(self):
 		global Air_Gui_Window
@@ -684,6 +755,24 @@ class Aircrack_gui(Gtk.Application):
 
 	def do_startup(self):
 		Gtk.Application.do_startup(self)
+		
+	def do_command_line(self, command_line):
+		options = command_line.get_options_dict()
+		# convert GVariantDict -> GVariant -> dict
+		options = options.end().unpack()
+		
+		global DO_NOT_KILL
+		DO_NOT_KILL = True if "nokill" in options and options["nokill"] is True else False #evil laughing intensifies
+		global DO_NOT_LOG
+		DO_NOT_LOG = True if "nolog" in options and options["nolog"] is True else False #evil laughing intensifies
+		global DO_NOT_CLEAN
+		DO_NOT_CLEAN = True if "noclean" in options and options["noclean"] is True else False #evil laughing intensifies
+
+		self.activate()
+		return 0
+		
+	def on_quit(self, action, param):
+		self.quit()
 
 
 No_Interface_Dialog = type(NoInterfacesFoundDialog)
