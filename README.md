@@ -1,6 +1,6 @@
 # aircrack-gui
 
-Aircrack-gui is a python gui for [aicrack-ng](https://www.aircrack-ng.org/) using [Gtk 3.0](https://pygobject.readthedocs.io/en/latest/).
+Aircrack-gui is a python gui for [aircrack-ng](https://www.aircrack-ng.org/) using [gtk 3.0](https://pygobject.readthedocs.io/en/latest/).
 
 The priority was to make every step intuitive and easy)
 
@@ -8,13 +8,20 @@ The priority was to make every step intuitive and easy)
 
 PyGoObject version: > 3.38.0
 
-Python version: 3 - stable; 2 - not tested;
+Python version: 3: stable, 2: not tested.
 
 ## Installation
 
 ```
 git clone https://github.com/Cod3dDOT/aircrack-gui
+cd aircrack-gui
+pip install -r requirements.txt
 ```
+
+## IMPORTANT
+
+1. You must use aircrack-gui only on networks you have permission to.
+2. As this tool is only a gui, it will not work if the tools it uses behind the scenes do not work: python, [aircrack-ng](https://www.aircrack-ng.org/)aircrack-ng, [hcxtools](https://github.com/ZerBea/hcxtools).
 
 ## Usage 
 
@@ -24,19 +31,19 @@ Run:
 cd aircrack-gui
 python3 aircrack-gui.py
 ```
-If any interface will be found, a window will open with the option to choose an interface, scan, open aircrack-ng or start airmon-ng.
+If any interface will be found, a window will open with the option to choose an interface, scan, start airmon-ng or open aircrack-ng.
 
 Step 1: Set path (default: /home/SUDO_USER/Desktop/aircrack-ng/wifi/)
 
 ![main window](/demo/main_window.png)
 
-Step 2: Press 'Scan', wait for ~5 seconds (the window will become unresponsive, that's normal). A window will show up with a network list. Choose any network, check that it has WPA2 encryption (right now WEP/WPA1 are not implemented), hit 'Start Airmon-ng on BSSID: NETWORK_BSSID'.
+Step 2: Press 'Scan for networks', wait for ~5 seconds (the main window can become unresponsive, that's normal). A new window will show up with a network list. Choose desired network, check that it has WPA2 encryption (right now WEP/WPA1 are not implemented), hit 'Start Airmon-ng on BSSID: NETWORK_BSSID'.
 
 ![scanning window](/demo/scanning_window.png)
 
-Step 3: Aireplay-ng window will show up. Set amount of deauth packets to send (default: 10) and wait for station to appear (you can choose if several are found or type in a station address manually (format: xx-xx-..., xx:xx:..., xxxx...)). Hit 'Run deauth (aireplay-ng)'. If you see 'Success' on top of the window, then a handshake was received successfully. If not, try changing the station or amount of packets.
+Step 3: Aireplay-ng window will show up. Set amount of deauth packets to send (default: 10) and wait for station to appear (you can choose if several are found or type in a station mac address manually (format: xx-xx, xx:xx, xxxx)). Hit 'Run deauth (aireplay-ng)'. If you see 'Success' on top of the window, then a handshake was received successfully. If not, try changing the station or amount of packets.
 
-P.S: If no stations are found, your signal strength is probably too low. Signal strength can be checked when you select your network in Step 2.
+P.S: If no stations are found, your signal strength is probably too low. Signal strength can be checked when you select your network in Step 2 and is measured from 0 to 100, higher being better.
 
 ![aireplay-ng window](/demo/aireplay-ng_window.png)
 
@@ -58,6 +65,7 @@ Application Options:
 ```
 
 ## Todo
+
 - Change network scanning from nmcli to airmon-ng
 
 <details>
