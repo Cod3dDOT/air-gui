@@ -1,4 +1,5 @@
-# 0.0.5
+#!/usr/bin/ python3
+# 0.0.7
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gio
@@ -20,9 +21,9 @@ DEFAULT_SAVE_LOCATION = "{}/wifis/".format(MY_DIRECTORY[:-1])
 SaveLocation = ""
 
 # Arguments
-DO_NOT_KILL  	= False
-DO_NOT_LOG 	 	= False
-DO_NOT_CLEAN 	= False
+DO_NOT_KILL	  = False
+DO_NOT_LOG	  = False
+DO_NOT_CLEAN  = False
 
 # Window triggers
 Show_Aircrack = False
@@ -30,67 +31,12 @@ Show_Aireplay = False
 Show_Airodump = False
 
 # Dialog triggers
-Show_No_Interface = False
+Show_No_Interface 		  = False
 Show_Monitor_Mode_Enabled = False
 # Global variables ------------------------- End
 
 # Custom functions ------------------------- Start
-def check_monitor_mode(interface):
-	command_get_mode = "sudo iwconfig {} | awk -F: '/Mode/{{print$2}}'".format(interface)
-	if os.popen(command_get_mode).read().split(" ", 1)[0] == "Monitor":
-		return True
-	else:
-		return False
-
-
-#Update all network interfaces
-def update_interfaces():
-	global Interfaces
-	global Show_No_Interface
-	global No_Interface_Dialog
-	del Interfaces[:]
-	interfaces = os.popen("sudo iwconfig 2>&1 | grep -oP '^\w+'").read().split("\n")[:-1]
-	for interface in interfaces:
-		if interface != "lo" and interface != "eth0":
-			command_set_interface_up = "sudo ifconfig {} up".format(interface)
-			os.popen(command_set_interface_up)
-			Interfaces.append(interface)
-			
-	if len(Interfaces) == 0:
-		if Show_No_Interface == False:
-			Show_No_Interface = True
-			
-			No_Interface_Dialog = NoInterfacesFoundDialog()
-			response = No_Interface_Dialog.run()
-			if response == Gtk.ResponseType.OK:
-				log("Scanning for interfaces.")
-				restart_network_manager()
-				update_interfaces()
-			else:
-				exit()
-		else:
-			response = No_Interface_Dialog.run()
-			if response == Gtk.ResponseType.OK:
-				log("Scanning for interfaces.")
-				restart_network_manager()
-				update_interfaces()
-			else:
-				exit()
-	elif Show_No_Interface == True:
-		Show_No_Interface = False
-		No_Interface_Dialog.destroy()
-
-
-def start_network_manager():
-	if "Unit dhcpcd.service" in os.popen("sudo systemctl start dhcpcd 2>&1").read():
-		os.popen("sudo systemctl start NetworkManager").read()
-
-
-def restart_network_manager():
-	if "Unit dhcpcd.service" in os.popen("sudo systemctl restart dhcpcd 2>&1").read():
-		os.popen("sudo systemctl restart NetworkManager").read()
-		
-def log(string, logtype = 0, nonewline = False):
+def log(string, logtype = 0, rewriteable = False):
 	if DO_NOT_LOG:
 		return
 
@@ -101,16 +47,51 @@ def log(string, logtype = 0, nonewline = False):
 		type_indicator = colored("WARNING", "yellow")
 	if logtype == 2:
 		type_indicator = colored("ERROR", "red")
-	if nonewline:
+	if rewriteable:
 		print("[" + colored(str(dt.now().time()).split(".")[0], "blue") + "] [" + type_indicator + "] " + string, end="\r")
 	else:
 		print("[" + colored(str(dt.now().time()).split(".")[0], "blue") + "] [" + type_indicator + "] " + string)
-	
+
+
 def run_command(command):
 	return os.popen(command).read()
-	
+
+
 def run_command_background(command):
 	return os.popen(command)
+
+
+def check_monitor_mode(interface):
+	command_get_mode = "sudo iwconfig {} | awk -F: '/Mode/{{print$2}}'".format(interface)
+	if run_command(command_get_mode).split(" ", 1)[0] == "Monitor":
+		return True
+	else:
+		return False
+		
+def set_monitor_mode(interface, enable):
+	if enable:
+		if not DO_NOT_KILL:
+			log("Killing processes.")
+			run_command("sudo airmon-ng check kill")
+		else:
+			log("NOT killing processes.", 1)
+		log("Starting airmon-ng on: {}.".format(Interface))
+		run_command("sudo airmon-ng start {}".format(Interface))
+	else:
+		log("Stopping airmon-ng on: {}.".format(Interface))
+		run_command("sudo airmon-ng stop {}".format(Interface))
+		log("Starting Network Manager.")
+		start_network_manager()
+
+
+def start_network_manager():
+	if "Unit dhcpcd.service" in run_command("sudo systemctl start dhcpcd 2>&1"):
+		run_command("sudo systemctl start NetworkManager")
+
+
+def restart_network_manager():
+	if "Unit dhcpcd.service" in run_command("sudo systemctl restart dhcpcd 2>&1"):
+		run_command("sudo systemctl restart NetworkManager")
 
 
 # Custom functions ------------------------- Start
@@ -124,10 +105,10 @@ class Air_gui(Gtk.ApplicationWindow):
 		
 		Air_Gui_Window = self
 		
-		hb = Gtk.HeaderBar()
-		hb.set_show_close_button(True)
-		hb.props.title = "Aircrack-ng GUI"
-		self.set_titlebar(hb)
+		headerbar = Gtk.HeaderBar()
+		headerbar.set_show_close_button(True)
+		headerbar.props.title = "Aircrack-ng GUI"
+		self.set_titlebar(headerbar)
 		
 		self.aircrackButton = Gtk.Button(label="Open Aircrack-ng")
 		self.aircrackButton.connect("pressed", self.on_button_clicked_aircrack, "1")
@@ -151,7 +132,7 @@ class Air_gui(Gtk.ApplicationWindow):
 		vbox.pack_start(self.airmonButton, True, True, 0)
 		vbox.pack_start(self.aircrackButton, True, True, 0)
 		
-		update_interfaces()
+		self.update_interfaces()
 		self.initiate_combo_box(hbox)
 		
 		hbox.pack_start(self.scanButton, True, True, 0)
@@ -166,8 +147,8 @@ class Air_gui(Gtk.ApplicationWindow):
 	def initiate_combo_box(self, hbox):
 		global Interface
 		listmodel = Gtk.ListStore(str)
-		for i in Interfaces:
-			listmodel.append([i])
+		for interface in Interfaces:
+			listmodel.append([interface])
 
 		self.combobox = Gtk.ComboBox(model=listmodel)
 
@@ -187,44 +168,37 @@ class Air_gui(Gtk.ApplicationWindow):
 	def update_combo_box(self):
 		global Interface
 		listmodel = Gtk.ListStore(str)
-		for i in Interfaces:
-			listmodel.append([i])
+		for interface in Interfaces:
+			listmodel.append([interface])
 		self.combobox.set_model(model=listmodel)
 		self.combobox.set_active(0)
 		Interface = Interfaces[self.combobox.get_active()]
 
 
+	# if another interface is selected, write its value on the terminal
 	def on_changed_combo(self, combo):
 		global Interface
-		# if the row selected is not the first one, write its value on the
-		# terminal
 		Interface = Interfaces[self.combobox.get_active()]
 		log("Selected interface: " + Interface + ".")
 		return True
 
 
+	# if button is pressed, change interface mode 
 	def on_button_toggled_airmon(self, button, name):
-		if button.get_active():
-			button.set_label("Stop airmon-ng")
-			if not DO_NOT_KILL:
-				log("Killing processes.")
-				output_airmon_check_kill = os.popen("sudo airmon-ng check kill").read()
-			else:
-				log("NOT killing processes.", 1)
-			log("Starting airmon-ng on: {}.".format(Interface))
-			run_command("sudo airmon-ng start {}".format(Interface))
-			update_interfaces()
+		if self.airmonButton.get_active():
+			self.airmonButton.set_label("Stop airmon-ng")
+			set_monitor_mode(Interface, True)
+			self.airmonButton.set_active(True)
 		else:
-			button.set_label("Start airmon-ng")
-			log("Stopping airmon-ng on: {}.".format(Interface))
-			run_command("sudo airmon-ng stop {}".format(Interface))
-			log("Starting Network Manager.")
-			start_network_manager()
-			update_interfaces()
+			self.airmonButton.set_label("Start airmon-ng")
+			set_monitor_mode(Interface, False)
+			self.airmonButton.set_active(False)
+			
+		self.update_interfaces()
 		self.update_combo_box()
-		self.airmonButton.set_active(check_monitor_mode(Interface))
 
 
+	# open aircrack-ng window
 	def on_button_clicked_aircrack(self, button, name):
 		global Show_Aircrack
 		if button.activate():
@@ -233,6 +207,8 @@ class Air_gui(Gtk.ApplicationWindow):
 			Show_Aircrack = True
 
 
+	# If monitor mode is enabled, show prompt to disable it.
+	# If it is disabled, show scan window
 	def on_button_clicked_scan(self, button, name):
 		global Show_Monitor_Mode_Enabled
 		if button.activate():
@@ -251,7 +227,7 @@ class Air_gui(Gtk.ApplicationWindow):
 					run_command("sudo airmon-ng stop {}".format(Interface))
 					start_network_manager()
 						
-					update_interfaces()
+					self.update_interfaces()
 					self.update_combo_box()
 						
 					self.airmonButton.set_active(check_monitor_mode(Interface))
@@ -263,6 +239,43 @@ class Air_gui(Gtk.ApplicationWindow):
 					self.moniotor_mode_dialog.destroy()
 				self.scanWindow = Scan(app)
 				self.scanWindow.show_all()
+				
+				
+	# Get all network interfaces
+	def update_interfaces(self):
+		global Interfaces
+		global Show_No_Interface
+		global No_Interface_Dialog
+		del Interfaces[:]
+		interfaces = run_command("sudo iwconfig 2>&1 | grep -oP '^\w+'").split("\n")[:-1]
+		for interface in interfaces:
+			if interface != "lo" and interface != "eth0":
+				run_command("sudo ifconfig {} up".format(interface))
+				Interfaces.append(interface)
+				
+		if len(Interfaces) == 0:
+			if Show_No_Interface == False:
+				Show_No_Interface = True
+				
+				No_Interface_Dialog = NoInterfacesFoundDialog()
+				response = No_Interface_Dialog.run()
+				if response == Gtk.ResponseType.OK:
+					log("Scanning for interfaces.")
+					restart_network_manager()
+					self.update_interfaces()
+				else:
+					exit()
+			else:
+				response = No_Interface_Dialog.run()
+				if response == Gtk.ResponseType.OK:
+					log("Scanning for interfaces.")
+					restart_network_manager()
+					self.update_interfaces()
+				else:
+					exit()
+		elif Show_No_Interface == True:
+			Show_No_Interface = False
+			No_Interface_Dialog.destroy()
 
 
 class Scan(Gtk.ApplicationWindow):
@@ -293,21 +306,21 @@ class Scan(Gtk.ApplicationWindow):
 		parent.pack_start(stack, True, True, 6)
 		
 		networks = self.scan_networks()
-		if networks == '':
+		if networks == []:
 			self.destroy()
 		
 		for index, network in enumerate(networks):
 			vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 			
 			label = Gtk.Label()
-			label.set_markup("<big>Bssid: </big>{}\n<big>Channel: </big>{}\n<big>Signal Strength: </big>{}\n<big>Encryption: </big>{}".format(network[0], network[2], network[3], network[4]))
+			label.set_markup("<big>BSSID: </big>{}\n<big>Channel: </big>{}\n<big>Signal Strength: </big>{}%\n<big>Encryption: </big>{}".format(network[0], network[2], network[3], network[4]))
 			vbox.pack_start(label, True, True, 0)
 			
 			self.airodumpButton = Gtk.Button(label="Start airodump-ng on chosen network")
 			self.airodumpButton.connect("pressed", self.on_button_clicked_airodump, "1", network)
 			vbox.pack_start(self.airodumpButton, True, True, 6)
 			
-			name = "label%i" % index
+			name = "label{}".format(index)
 			stack.add_titled(vbox, name, network[1])
 
 
@@ -443,16 +456,13 @@ class Airodump_ng(Gtk.ApplicationWindow):
 	def autofill_station_address(self):
 		self.get_stations_from_airmon()
 		if len(self.Stations) > 0:
-			if self.Station not in self.Stations:
-				self.Station = self.Stations[0]
 			self.update_station_selector_box()
-		#else:
-			#print('[' + colored(str(dt.now().time()).split('.')[0], "blue") + "] [" + colored('ERROR', 'red') + "] No stations found")
 		return True
 
 
 	def initiate_station_selector_box(self, hbox):
 		listmodel = Gtk.ListStore(str)
+		listmodel.append(["Custom"])
 		for i in self.Stations:
 			listmodel.append([i])
 
@@ -471,16 +481,26 @@ class Airodump_ng(Gtk.ApplicationWindow):
 
 	def update_station_selector_box(self):
 		listmodel = Gtk.ListStore(str)
+		listmodel.append(["Custom"])
 		for i in self.Stations:
 			listmodel.append([i])
+		
 		self.stationSelector.set_model(model=listmodel)
 		if len(self.Stations) > 0:
-			self.stationSelector.set_active(self.Stations.index(self.Station))
-			self.stationEntry.set_text(self.Station)
+			if self.Station in self.Stations:
+				self.stationSelector.set_active(self.Stations.index(self.Station) + 1)
+			else:
+				self.stationSelector.set_active(0)
 
 	def on_changed_station_selector(self, combo):
-		self.Station = self.Stations[self.stationSelector.get_active()]
-		self.stationEntry.set_text(self.Station)
+		if self.stationSelector.get_active() != 0:
+			self.stationEntry.set_sensitive(False)
+			self.Station = self.Stations[self.stationSelector.get_active() - 1]
+			self.stationEntry.set_text(self.Station)
+		else:
+			self.stationEntry.set_sensitive(True)
+			if self.Station in self.Stations:
+				self.stationEntry.set_text("")
 
 
 	def on_station_manual_entry(self, entry):
@@ -603,24 +623,21 @@ class Aircrack_ng(Gtk.ApplicationWindow):
 
 
 	def start_hashcat(self, button, name):
-		if self.capFilePath.split(".")[1] == "cap":
-			command_hcxpcapngtool="hcxpcapngtool {} -o {}.22000".format(self.capFilePath, self.capFilePath.split(".")[0])
-			os.popen(command_hcxpcapngtool)
-		command_hashcat = '''xterm -T "hashcat" -hold -e "sudo hashcat -m 22000 '{}' '{}'"'''.format(self.capFilePath.split(".")[0] + ".22000", self.wordlistFilePath)
-		os.popen(command_hashcat)
+		filename, extension = self.capFilePath.split(".")
+		if extension == "cap":
+			run_command("hcxpcapngtool {} -o {}.22000".format(self.capFilePath, filename))
+			run_command_background('''xterm -T "hashcat" -hold -e "sudo hashcat -m 22000 '{}' '{}'"'''.format(filename + ".22000", self.wordlistFilePath))
 
 
 	def start_aircrack(self, button, name):
-		command_aircrack='''xterm -T "aircrack-ng" -hold -e "sudo aircrack-ng -w '{}' '{}'"'''.format(self.wordlistFilePath, self.capFilePath)
-		os.popen(command_aircrack)
+		run_command_background('''xterm -T "aircrack-ng" -hold -e "sudo aircrack-ng -w '{}' '{}'"'''.format(self.wordlistFilePath, self.capFilePath))
 		
 	def ready_check(self):
 		if(os.path.isfile(self.capFilePath) and os.path.isfile(self.wordlistFilePath)):
 			if(self.capFilePath.split(".")[1] == "cap"):
 				self.startAircrack.set_sensitive(True)
 				
-				command_check_hcxpcapngtool = "which hcxpcapngtool";
-				if (os.popen(command_check_hcxpcapngtool).read() != "hcxpcapngtool not found\n"):
+				if (run_command("which hcxpcapngtool") != "hcxpcapngtool not found\n"):
 					self.startHashcat.set_sensitive(True)
 
 
@@ -684,12 +701,12 @@ class NoInterfacesFoundDialog(Gtk.MessageDialog):
 		Gtk.Dialog.__init__(self, transient_for=None, flags=0, text="Interfaces not found")
 		self.set_default_size(150, 100)
 		
-		hb = Gtk.HeaderBar()
-		hb.set_show_close_button(True)
-		hb.props.title = "Aircrack-ng GUI"
-		self.set_titlebar(hb)
+		headerbar = Gtk.HeaderBar()
+		headerbar.set_show_close_button(True)
+		headerbar.props.title = "Aircrack-ng GUI"
+		self.set_titlebar(headerbar)
 		
-		self.format_secondary_text("No network interfaces were found.\nWant to try to restart network manager and check for any interfaces that are down?")
+		self.format_secondary_text("No network interfaces were found.\nWant to try to restart Network Manager and check for any interfaces that are down?")
 		
 		self.add_buttons("Rescan for interfaces", Gtk.ResponseType.OK)
 
@@ -702,12 +719,12 @@ class MonitorModeEnabledDialog(Gtk.MessageDialog):
 		Gtk.Dialog.__init__(self, transient_for=None, flags=0, text = "Monitor mode is enabled")
 		self.set_default_size(150, 100)
 		
-		hb = Gtk.HeaderBar()
-		hb.set_show_close_button(True)
-		hb.props.title = "Aircrack-ng GUI"
-		self.set_titlebar(hb)
+		headerbar = Gtk.HeaderBar()
+		headerbar.set_show_close_button(True)
+		headerbar.props.title = "Aircrack-ng GUI"
+		self.set_titlebar(headerbar)
 		
-		self.format_secondary_text("In order to scan for networks inetrface needs to be in managed mode.\nWant to disable monitor mode?")
+		self.format_secondary_text("Interface needs to be in managed mode to be able to scan for intefaces.\nWant to disable monitor mode?")
 		
 		self.add_buttons("Disable airmon-ng (Monitor mode)", Gtk.ResponseType.OK)
 		
@@ -728,7 +745,7 @@ class Aircrack_gui(Gtk.Application):
 			0,
 			GLib.OptionFlags.NONE,
 			GLib.OptionArg.NONE,
-			"Do not run 'airmon-ng check kill'. Will retain internet connection on other devices, but is probably a bad idea.",
+			"Do not run 'airmon-ng check kill'. Will retain internet connection on other interfaces, but is probably a bad idea.",
 			None,
 		)
 		self.add_main_option(
@@ -762,11 +779,11 @@ class Aircrack_gui(Gtk.Application):
 		options = options.end().unpack()
 		
 		global DO_NOT_KILL
-		DO_NOT_KILL = True if "nokill" in options and options["nokill"] is True else False #evil laughing intensifies
+		DO_NOT_KILL = True if "nokill" in options and options["nokill"] is True else False 	  #evil laughing intensifies
 		global DO_NOT_LOG
-		DO_NOT_LOG = True if "nolog" in options and options["nolog"] is True else False #evil laughing intensifies
+		DO_NOT_LOG = True if "nolog" in options and options["nolog"] is True else False 	  #ahahaha
 		global DO_NOT_CLEAN
-		DO_NOT_CLEAN = True if "noclean" in options and options["noclean"] is True else False #evil laughing intensifies
+		DO_NOT_CLEAN = True if "noclean" in options and options["noclean"] is True else False #AHAHAHAHAA
 
 		self.activate()
 		return 0
