@@ -1,3 +1,8 @@
+## Update before archiving:
+This was a fun first adventure into the world of python. One day I will rewrite it (the dev brach was supposed to be just that).
+Unfortunately (or, who knows, maybe fortunately), I do not have the time to write and support something that is worthy of calling itself aircrack-gui (it shouldn't have a name like that in the first place).
+For now, I will rename the project to air-gui and archive the repo as a reminder of how not do things in the future.
+
 # aircrack-gui
 
 Aircrack-gui is a python gui for [aircrack-ng](https://www.aircrack-ng.org/) using [gtk3.0](https://pygobject.readthedocs.io/en/latest/).
