@@ -16,29 +16,10 @@ You must use aircrack-gui only on networks you have permission to.
 
 ## Installation
 
-#### pip3:
-
-Install:
-```
-pip3 install aircrack-gui
-```
-
-Run: (anywhere)
-```
-aircrack-gui.py
-```
-
-#### Github:
-
-Install:
 ```
 git clone https://github.com/Cod3dDOT/aircrack-gui
 cd aircrack-gui
 pip install -r requirements.txt
-```
-
-Run: (make sure you are in right directory)
-```
 python3 aircrack-gui.py
 ```
 
